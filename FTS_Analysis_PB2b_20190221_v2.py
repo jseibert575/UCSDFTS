@@ -286,7 +286,7 @@ def read_bolodata_3(datapath,wafer,combs=None):
 
 	# Get the names of the bolometers associated only with the specified combs
 	bolonames = []
-	# Use combs 1-28 if none are specified - ??? why would this not be 1-30?
+	# Use combs 1-28 if none are specified - ??? why would this not be 1-40?
 	if not combs:
 		combs = range(1,29)
 	# Loop through the combs and add the bolometer names
@@ -377,7 +377,7 @@ def get_steptimes(timepath,steplength=2.0):
 
 		# Take the average of the start and end times
 		# Assume exactly 2 second integration time if something was wrong with the start or endtime arrays
-		# (Seems like this would fail if both start and endtime arrays are problematic)
+		# ??? (Seems like this would fail if both start and endtime arrays are problematic)
 		start_avg = np.average(starttime_array)
 		end_avg = np.average(endtime_array)
 		if np.isnan(start_avg):
@@ -406,17 +406,17 @@ def get_steptimes(timepath,steplength=2.0):
 
 def calc_refIQ(refsig,reftime,bolotime,harm=1,deltat=0.):
 	"""Calculate in-phase and quadrature components from chopper reference signal in order to
-	demodulate signal ???
+	demodulate signal ??? SEEMS LIKE THIS JUST REFERENCES GENQUADPAIR AND THERES NO REAL NEED FOR
+	THIS FUNCTION
 	
-	Parameters:
+	Parameters: - SEE GenQuadPair()
 	refsig () - ???
 	reftime () - ???
 	bolotime () - ???
 	harm (int) - ???, default 1
 	deltat (float) - ???, default 0.
 
-	Return:
-	???
+	Return: - See GenQuadPair()
 	"""
 
 	print 'Adjusting quad pair for timing error of value %s sec '%(deltat)
@@ -425,38 +425,46 @@ def calc_refIQ(refsig,reftime,bolotime,harm=1,deltat=0.):
 
 
 def GenQuadPair(ref,reftime,bolotime,harm=1,deltat=0.):
-	"""??? NEED TO COME BACK TO THIS ONCE I SEE WHERE IT IS CALLED
+	"""Fit the reference signal data to a cosine function, and use the fitted parameters to model
+	the corresponding bolometer data given the bolo times
 	
 	Parameters:
-	ref () - ???
-	reftime () - ???
-	bolotime () - ???
-	harm (int) - ???, default 1
-	deltat (float) - ???, default 0.
+	ref (array) - the reference signal data
+	reftime (array) - the reference signal times
+	bolotime (array) - the bolometer data times
+	harm (int) - ??? the frequency harmonic to look at, default 1
+	deltat (float) - the difference between the bolo start time and the ref start time, default 0.
 
 	Return:
-	???
+	a dictionary with the modeled bolo data
 	"""
 
-	sample_rate = 25e6/2.**17.
+	sample_rate = 25e6/2.**17. # ??? WHERE DOES THIS COME FROM?  DATA SAMPLES/SECOND?  THIS COMES TO ~190
+							   # ALSO USED IN step_idx
+
+	# Find the average ref signal and subtract it from the array
 	#ref -= (np.max(ref)-np.min(ref))/2.
 	#print np.max(ref), np.min(ref)
-	print np.average(ref)
+	print 'Average reference signal: ', str(np.average(ref))
 	ref -= np.average(ref)
 
 	# ??? THE INDENTATION WAS MESSED UP FOR THE REST OF THIS FUNCTION BUT HOPEFULLY I GOT IT RIGHT
+	# Model for fitting the bolometer time data
 	def model(ts,ampx,ampy,f,theta):
 		phi = 2.0*np.pi*f*harm*ts + theta
 		return ampx*np.cos(phi) + ampy*np.sin(phi)
 
+	# Model for fitting the reference signal data
 	def model_cos(ts,ampx,ampy,f,theta):
 		phi = 2.0*np.pi*f*harm*ts + theta
-		return ampx*np.cos(phi) 
+		return ampx*np.cos(phi)
 
+	# Downsample the reference signal data to use for fitting
 	ref_fit = ref[::100]
 	reftime_fit = reftime[::100] - reftime[0]
 	nt = len(ref_fit)
 
+	# Split the reference signal data in to 5 sections and fit each section to the cosine model
 	nsplit = 5
 	amp = []
 	freq = []
@@ -475,17 +483,22 @@ def GenQuadPair(ref,reftime,bolotime,harm=1,deltat=0.):
 		amp.append(popt_sec[0])
 		freq.append(popt_sec[2])
 		phase.append(popt_sec[3])
+	# Average the results from the different sections
 	popt = [np.average(amp),0.,np.average(freq),np.average(np.unwrap(phase))]
 	print 'Averaged fitted parameters for reference signal: ',popt
 
+	# Sync the bolo time data with the reference time data
 	#print deltat
 	bolotime += deltat
+
+	# Model the bolometer data using bolo time, using sin (y) and cos (x) separately
 	#ref = model(bolotime-bolotime[0],*popt)
 	#refx = model(ts,1.0,0.0,popt[2])
 	#refy = model(ts,0.0,1.0,popt[2])
 	refx = model(bolotime-bolotime[0],1.0,0.0,popt[2],popt[3])
 	refy = model(bolotime-bolotime[0],0.0,1.0,popt[2],popt[3])
 
+	# Return a dictionary with the modeled bolo data
 	return {'X':refx,'Y':refy}
 
 
@@ -717,6 +730,7 @@ def main(args):
 		# Create the directory to hold the output plots
 		lFA.make_plots_dir(args.outputdir)
 
+
 		print '\n\tLoading all necessary files...'
 
 		# Read the file with the reference signal data and load the refernce times and signals
@@ -738,6 +752,7 @@ def main(args):
 
 		# Load the bolometer data from the g3 formatted file
 		boloid,bolo_time,ts,freq = read_bolodata_3(args.inputfn,waferstr,combs=comblist)
+		#bolo names, bolo times, bolo data, bolo freqs
 		print '\t\tBolo IDs, shape of bolo timestamps, shape of bolo data: '
 		print boloid, bolo_time.shape,ts.shape
 		print '\t\tLoaded bolometer data.'
@@ -754,12 +769,12 @@ def main(args):
 
 		# Print some verification/debugging things
 		print '\n\tPrinting some verification/debugging things...'
-		print len(refsig), len(reftimes)
-		print ts.shape,len(bolo_time)
+		print 'len(refsig), len(reftimes): ', str(len(refsig)), str(len(reftimes))
+		print 'ts.shape, len(bolo_time): ', str(ts.shape),str(len(bolo_time))
 
-		print starttimes[0], endtimes[-1]
-		print bolo_time[0], bolo_time[-1]
-		print reftimes[0], reftimes[-1]
+		print 'starttimes[0], endtimes[-1]: ', str(starttimes[0]), str(endtimes[-1])
+		print 'bolo_time[0], bolo_time[-1]: ', str(bolo_time[0]), str(bolo_time[-1])
+		print 'reftimes[0], reftimes[-1]: ', str(reftimes[0]), str(reftimes[-1])
 
 		# Cut data to only those between the first start time and the last end time, with a buffer
 		cutbuff = 1.0	# sec
@@ -774,8 +789,8 @@ def main(args):
 		# Print more verification/debugging things
 		print '\n\tData has been cut according to first start time and last end time.'
 		print '\tPrinting more verification/debugging things...'
-		print len(refsig), len(reftimes)
-		print ts.shape,len(bolo_time)
+		print 'len(refsig), len(reftimes): ', str(len(refsig)), str(len(reftimes))
+		print 'ts.shape, len(bolo_time): ', str(ts.shape),str(len(bolo_time))
 
 		print 'Step: ',starttimes[0]
 		print 'Ref: ',reftimes[0]
@@ -784,20 +799,28 @@ def main(args):
 
 		# ???
 		class df: pass
+		# Load the bolo information into a df object
 		df.bolo_time = bolo_time
 		df.bolo = ts
 		#df.boloid = boloid
+		# Create a df object attribute holding the bolo name along with its frequency
 		boloid2 = []
 		for i in range(len(boloid)):
 			boloid2.append(boloid[i]+'_'+freq[i])
 		df.boloid = np.array(boloid2)
+		print '\n\tdf.boloid: '
 		print df.boloid
 
+		# Create arrays to indicate bolo time indices for each step
 		skip_idx = []
 		skip_num = []
+		# Determine the difference between the first reference signal time and the first bolo time
 		delta_t = bolo_time[0] - reftimes[0]
 
+		# Populate the step arrays to indicate the bolo time indices for each step
 		step_idx, step_mask = lFA.step_idx(df,starttimes,endtimes,steplength=args.inttime)
+
+		# Fit the reference signal and get corresponding models for the bolo data
 		print 'Fitting for reference signal IQ...'
 		refIQ = calc_refIQ(refsig,reftimes,df.bolo_time,harm=args.harmonic,deltat=delta_t)
 		#refIQ = lFA.calc_refIQ_value(df.bolo_time,skip_idx,skip_num,harm=args.harmonic,deltat=delta_t)

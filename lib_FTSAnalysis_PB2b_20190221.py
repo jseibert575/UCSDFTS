@@ -109,24 +109,38 @@ def step_idx(df,starttimes,endtimes,buff=0.,steplength=2.0):
 	"""Create array of indices of where stepping and integrating
 	
 	Parameters:
-	df () - ???
-	starttimes () - ???
-	endtimes () - ???
-	buff (float) - ???, default 0.
-	steplength (float) - ???, default 2.0
+	df - the df object containing the relevant bolometer data
+	starttimes (array) - array containing the start time of each integration step
+	endtimes (array) - array containing the end time of each integration step
+	buff (float) - ??? maybe a lag between bolo data times and start/end times, default 0.
+	steplength (float) - the integration time in seconds, default 2.0
 
 	Return:
-	
+	steps - ??? array indicating the indices of the bolometer times that correspond to data taking,
+	with some buffer
+	steps_mask - boolean array where True indicates the corresponding element in steps is valid
 	"""
-	sample_rate = 25e6/2.**17.
+	
+	# ??? Set parameters
+	sample_rate = 25e6/2.**17. # ??? WHERE DOES THIS COME FROM?  DATA SAMPLES/SECOND?  THIS COMES TO ~190
 	deltat = steplength
 	extra = 1.0
+
+	# ??? Get the number of data samples in each integration step, with some extra
 	nt = np.round((deltat+extra)*sample_rate)
+
+	# Create 2d arrays of zeros for steps and 'False' for steps_mask
 	steps = np.zeros((len(starttimes),int(nt)),dtype=int)
 	steps_mask = np.zeros((len(starttimes),int(nt)),dtype=bool)
+
+	# Load the bolo times ( ??? time at which each bolometer data point was taken)
 	bolo_times = df.bolo_time
 	#print len(bolo_times), steps.shape
+
+	# Loop through each integration step
 	for i in range(len(starttimes)):
+		# Find the index of the bolometer times closest to the start and end times for each step,
+		# accounting for some buffer
 		c1 = np.argmin(abs(bolo_times-starttimes[i]-buff/3600./24.))
 		c2 = np.argmin(abs(bolo_times-endtimes[i]+buff/3600./24.))
 		#print starttimes[i],c1,endtimes[i],c2
