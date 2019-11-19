@@ -1,0 +1,38 @@
+This is a setup guide to make sure arduino is operating properly:
+
+Connect the opto-interrupter BNC output cable to the FTS and Connect the red wire to the A0 pin on the arduino
+board the black wire should be connected the ground pin on the arduino board this will reference the voltage read
+by the anolog input pin A0 to a default of 5V. 
+
+Refer to this link for help using arduino on linux
+
+https://www.arduino.cc/en/Guide/Linux
+
+
+
+
+Launch the 'optoAdc.ino' file using arduino IDE software:
+
+	Verify the arduino is able to communicate via serial port. Check this by connecting the arduino
+	to the computer through USB. Click on tools on the top of the arduino software window and select
+	port. While using linux it should read something like '/dev/ttyACM0' where the 0 can be some different number. 
+	
+
+	Upload the sketch to the Arduino board by clicking the upload arrow in the top left of the arduino software.
+	You might encounter 'error Error opening serial port ...' If you get this error, you need to set serial port permission.
+	[[Read]] the "Please Read..." section here https://www.arduino.cc/en/Guide/Linux
+
+	[[PLEASE NOTE]]
+	In order to be able to use the python script for the opto-interrupter make sure the '/dev/ttyACMX'
+	matches the the port number for serial communication to work with the python code.
+
+	-OPTIONAL-
+
+	The 'optoAdc.ino' file has an optional opto-interrupter calibration in the setup function of the code if needed.
+	Just uncomment it and upload the sketch to the arduino board again.
+
+
+
+
+
+
