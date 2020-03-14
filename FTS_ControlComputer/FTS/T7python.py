@@ -13,23 +13,23 @@ class T7():
 			print ("Opened a LabJack with Device type: %i, Connection type: %i,\n" \
                     "Serial number: %i, IP address: %s, Port: %i,\nMax bytes per MB: %i" % \
                     (info[0], info[1], info[2], ljm.numberToIP(info[3]), info[4], info[5]))
-            
+
 		except:
 			print("Error opening Labjack")
 			self.handle = None
-        	
+
 	def __del__(self):
         #Destructor. Ensures handle is closed properly.
 
 		from labjack import ljm
 		if self.handle:
 			ljm.close(self.handle)
-		
+
 	def stream_txtrecord(self,maxRequest,scanRate,aScanListNames,aNames,aValues):
 
 		tstr = time.strftime('%Y%m%d_%H%M%S',time.gmtime(time.time()))
 		savefile = tstr+'_timestream.txt'
-		
+
 		f=open(savefile,'wb')
 
 		NUM_IN_CHANNELS = len(aScanListNames)
@@ -47,16 +47,16 @@ class T7():
 		scanRate = ljm.eStreamStart(handle, scansPerRead, NUM_IN_CHANNELS, aScanList, scanRate)
 		print("\nStream started with a scan rate of %0.0f Hz." % scanRate)
 		print("\nPerforming %i stream reads." % maxRequest)
-    
+
 		start = datetime.now()
 		totScans = 0
 		totSkip = 0  # Total skipped samples
 		i = 1
-    	
+
 		streamdata=[]
 		try:
 			while i <= maxRequest or maxRequest == -1:
-    
+
 				ret = ljm.eStreamRead(handle)
 				data = ret[0][0:(scansPerRead * NUM_IN_CHANNELS)]
 				scans = len(data) / NUM_IN_CHANNELS
@@ -72,8 +72,8 @@ class T7():
 						recordStr += str(data[j * NUM_IN_CHANNELS + k])+','
 					f.write(recordStr+'\n')
 				i += 1
-        		
-					
+
+
 			end = datetime.now()
 			f.close()
 			print("\nTotal scans = %i" % (totScans))
@@ -91,7 +91,7 @@ class T7():
 			print(e)
 		try:
 			print("\nStop Stream")
-			
+
 
 			ljm.eStreamStop(handle)
 		except ljm.LJMError:
@@ -100,14 +100,14 @@ class T7():
 		except Exception:
 			e = sys.exc_info()[1]
 			print(e)
-    		
+
 		ljm.close(handle)
-		
+
 		return np.array(streamdata)
-            
+
 	def stream_array(self,maxRequest,scanRate,aScanListNames,aNames,aValues):
 
-		
+
 		NUM_IN_CHANNELS = len(aScanListNames)
 		scansPerRead = int(scanRate/2)
 		handle = self.handle
@@ -123,16 +123,16 @@ class T7():
 		scanRate = ljm.eStreamStart(handle, scansPerRead, NUM_IN_CHANNELS, aScanList, scanRate)
 #		print("\nStream started with a scan rate of %0.0f Hz." % scanRate)
 #		print("\nPerforming %i stream reads." % maxRequest)
-    
+
 		start = datetime.now()
 		totScans = 0
 		totSkip = 0  # Total skipped samples
 		i = 1
-    	
+
 		streamdata=[]
 		try:
 			while i <= maxRequest or maxRequest == -1:
-    
+
 				ret = ljm.eStreamRead(handle)
 				data = ret[0][0:(scansPerRead * NUM_IN_CHANNELS)]
 				scans = len(data) / NUM_IN_CHANNELS
@@ -154,18 +154,12 @@ class T7():
 		except Exception:
 			e = sys.exc_info()[1]
 			print(e)
-			
+
 		return np.array(streamdata)
 	def stopstream(self):
 		handle = self.handle
 		ljm.eStreamStop(handle)
 #		ljm.close(handle)
-		
+
 	def forceclose(self):
 		ljm.close(self.handle)
-        	
-        	
-        	
-        	
-        	
-    	
